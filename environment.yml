@@ -1,0 +1,11 @@
+name: poert
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - cudatoolkit=10.2.89=hfd86e86_1
+  - python=3.7.8=h6f2ec95_0_cpython
+  - pytorch=1.5.1=py3.7_cuda10.2.89_cudnn7.6.5_0
+  - pytorch-lightning=0.8.5=py_0
+  - tokenizers
