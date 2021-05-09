@@ -3,7 +3,18 @@ import random
 from time import sleep
 from transformers import BertTokenizer
 from bert_poetic_model import BERTPoeticModel
+import argparse
 from argparse import Namespace
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Generate some text from a BERT MLM model')
+
+    parser.add_argument('--model-path', type=str)
+    parser.add_argument('--vocab-path', type=str)
+    parser.add_argument('--seed-text', type=str, nargs='+')
+
+    return parser.parse_args()
 
 
 def random_replace(model, text):
@@ -41,33 +52,43 @@ def random_insert(model, text):
 
 
 if __name__ == "__main__":
-    args = {
-        'max_epochs': 2,
-        'batch_size': 24,
-        'lr': 0.00001,
-        'b1': 0.9,
-        'b2': 0.999,
-        'weight_decay': 0.15,
-        'train_data': '/mnt/atlas/gutenberg_dammit/gutenberg-dammit-files-v002.zip',
-        'val_data': '/mnt/atlas/gutenberg_dammit/gutenberg-dammit-files-v002.zip',
-        'dataloader_workers': 5,
-        'vocab_path': '/home/kevin/src/bert_poetic/bert-wordpiece-vocab.txt'
+    args = parse_args()
+    model_args = {
+        'vocab_path': args.vocab_path
     }
-    model = BERTPoeticModel(Namespace(**args))
-    model.load_state_dict(torch.load('/mnt/atlas/models/model_2.pt'))
+    #model_args = {
+    #    'vocab_path': '/home/kevin/src/bert_poetic/bert-wordpiece-vocab.txt'
+    #}
+    model = BERTPoeticModel(Namespace(**model_args))
+
+    #model.load_state_dict(torch.load('/mnt/atlas/models/model_2.pt'))
+    model.load_state_dict(torch.load(args.model_path))
     model.eval()
 
-    text = "a storm was brewing in the stars"
+    text = ' '.join(args.seed_text)
+    print(text)
+    prev_text = ''
     while True:
-        sleep(.5)
-        print(text)
+        sleep(.1)
+        prev_text = text
         text = random_replace(model, text)
-        sleep(.5)
-        print(text)
+        if(text != prev_text):
+            print(text)
+
+        sleep(.1)
+        prev_text = text
         text = random_replace(model, text)
-        sleep(.5)
-        print(text)
+        if(text != prev_text):
+            print(text)
+        
+        sleep(.1)
+        prev_text = text
         text = random_replace(model, text)
-        sleep(.5)
-        print(text)
+        if(text != prev_text):
+            print(text)
+
+        sleep(.1)
+        prev_text = text
         text = random_insert(model, text)
+        if(text != prev_text):
+            print(text)
