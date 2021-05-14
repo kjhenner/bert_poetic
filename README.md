@@ -50,5 +50,18 @@ with a neural network transformer language model.
    good parameter to experiment on!)
 
 3. Pre-train a [BERT](https://www.aclweb.org/anthology/N19-1423.pdf) masked
-   language model task on 
+   language model task on lines of poetry. The model replaces a random token
+   in each example with the `[MASK]` token, then learns to predict what word
+   was replaced based on context.
+
+4. The real value of this pre-trained language model will be in refining it
+   for further tasks related to poetry generation, such as metrical classification
+   and rhyme prediction. This is COMING SOON.
+
+5. But in the mean time, it's fun make it generate text by randomly replacing
+   tokens in an input text with a `[MASK]` token or randomly inserting a `[MASK]`
+   token, getting the model's prediction for the likliest token to fill that
+   position, inserting that predicted token, and finally repeating the process
+   with the new text.
+   for the most likley token to take that position, and 
  

@@ -11,3 +11,4 @@ dependencies:
   - transformers
   - tokenizers
   - jupyterlab
+  - jsonlines
