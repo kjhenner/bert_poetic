@@ -1,8 +1,7 @@
 import torch
 import random
 from time import sleep
-from transformers import BertTokenizer
-from bert_poetic_model import BERTPoeticModel
+from models.bert_poetic_model import BERTPoeticModel
 import argparse
 from argparse import Namespace
 

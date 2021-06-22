@@ -1,15 +1,11 @@
-import argparse
-import glob
 import json
 import os
 import zipfile
-import tempfile
 import re
 
 from typing import Text
 
 from torch.utils.data import Dataset
-from tokenizers import BertWordPieceTokenizer
 
 
 class FilteredGutenbergDammitDataset(Dataset):
