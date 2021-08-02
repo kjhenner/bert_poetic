@@ -12,8 +12,7 @@ def filtered_iter(data, field, pattern, english_only=True):
 
 
 def windowed_iter(items, n):
-    length = len(items)
-    items = (['BOS'] * n) + items + (['EOS']* n)
+    items = (['BOS'] * n) + items + (['EOS'] * n)
     yield from zip(*[items[i:] for i in range((2*n)+1)])
 
 

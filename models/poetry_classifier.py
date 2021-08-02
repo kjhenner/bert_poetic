@@ -16,7 +16,7 @@ from datasets.jsonl_dataset import JsonlDataset
 
 def preprocess(tokenizer, ex: Dict, max_length: int = 256) -> Dict:
 
-    text = ex['prev_line'] + " [SEP] " + ex['line']
+    text = "[SEP]".join(ex['prev_lines']) + " [SEP] " + ex['text']
 
     tokenized = tokenizer(
         text=text,
@@ -47,6 +47,16 @@ class PoetryClassifier(LightningModule):
             bert_config = BertConfig(vocab_size=1000)
             self.transformer = BertForSequenceClassification(config=bert_config)
             self.tokenizer = BertTokenizer(self.hparams.vocab_path, do_lower_case=True)
+
+#        metrics = torchmetrics.MetricCollection([
+#            torchmetrics.Accuracy(num_classes=2)
+#            torchmetrics.Precision(num_classes=2)
+#            torchmetrics.Recall(num_classes=2)
+#            torchmetrics.F1(num_classes=2)
+#
+#        self.train_metrics = metrics.clone(prefix='train_')
+#        self.val_metrics = metrics.clone(prefix='val_')
+#        self.test_metrics = metrics.clone(prefix='test')
 
     def forward(self, inputs):
         for k, v in inputs.items():
@@ -106,8 +116,8 @@ def parse_args():
     parser.add_argument('--b1', type=float, default=0.9)
     parser.add_argument('--b2', type=float, default=0.999)
     parser.add_argument('--weight_decay', type=float, default=0.15)
-    parser.add_argument('--train_data', type=str, default='/mnt/atlas/bert_poetic/heuristic_poetry_binary_classifier_data/train_heuristic_poetry_binary_classifier_data.jsonl')
-    parser.add_argument('--val_data', type=str, default='/mnt/atlas/bert_poetic/heuristic_poetry_binary_classifier_data/dev_heuristic_poetry_binary_classifier_data.jsonl')
+    parser.add_argument('--train_data', type=str, default='/mnt/atlas/bert_poetic/poetry_classifier/train_annotated_100k.jsonl')
+    parser.add_argument('--val_data', type=str, default='/mnt/atlas/bert_poetic/poetry_classifier/dev_annotated_100k.jsonl')
     parser.add_argument('--dataloader_workers', type=int, default=5)
     parser.add_argument('--vocab_path', type=str, default='pretrained')
     return parser.parse_args()
@@ -124,4 +134,4 @@ if __name__ == "__main__":
                          accumulate_grad_batches=2,
                          logger=tb_logger)
     trainer.fit(model)
-    torch.save(model.state_dict(), '/mnt/atlas/models/poetry_classifier.pt')
+    torch.save(model.state_dict(), '/mnt/atlas/models/poetry_classifier_annotated.pt')
