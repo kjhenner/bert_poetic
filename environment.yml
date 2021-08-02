@@ -12,3 +12,5 @@ dependencies:
   - tokenizers
   - jupyterlab
   - jsonlines
+  - scikit-learn
+  - pandas
