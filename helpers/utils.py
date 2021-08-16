@@ -1,9 +1,17 @@
 import re
 import os
+import zipfile
+import json
 from itertools import chain, islice
 
 
-def filtered_iter(data, field, pattern, english_only=True):
+def load_metadata(archive_path):
+    zip_file = zipfile.ZipFile(archive_path)
+    with zip_file.open('gutenberg-dammit-files/gutenberg-metadata.json') as f:
+        return json.load(f)
+
+
+def gd_metadata_iter(data, field="Subject", pattern=r'^Poet.*', english_only=True):
     for item in data:
         matches_pattern = any([re.match(pattern, subj) for subj in item.get(field, [])])
         is_english = "English" in item.get("Language")
@@ -23,11 +31,8 @@ def batch_iterable(iterable, n: int):
         yield list(chain([first], islice(it, n-1)))
 
 
-def zips_to_lines(zip_file, metadata_iter, include_metadata=False):
-    for metadata_entry in metadata_iter:
-        with zip_file.open(os.path.join('gutenberg-dammit-files/', metadata_entry.get('gd-path'))) as f:
-            for line in f.read().decode('utf-8').split('\n'):
-                if include_metadata:
-                    yield line.strip(), metadata_entry
-                else:
-                    yield line.strip()
+def iter_lines_from_gd_path(archive_path, gd_path):
+    zip_file = zipfile.ZipFile(archive_path)
+    with zip_file.open(os.path.join('gutenberg-dammit-files/', gd_path)) as f:
+        for line in f.read().decode('utf-8').split('\n'):
+            yield line.strip()
