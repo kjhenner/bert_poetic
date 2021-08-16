@@ -19,7 +19,7 @@ def parse_args():
 
     parser.add_argument('data_path', type=str)
     parser.add_argument('output_path', type=str)
-    parser.add_argument('--model-path', type=str, default='/mnt/atlas/models/poetry_classifier.pt')
+    parser.add_argument('--model-path', type=str, default='/mnt/atlas/models/poetry_classifier_annotated.pt')
     parser.add_argument('--vocab-path', type=str, default='pretrained')
     parser.add_argument('--batch-size', type=int, default=512)
 

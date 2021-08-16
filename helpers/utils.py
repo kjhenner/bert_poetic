@@ -19,6 +19,16 @@ def gd_metadata_iter(data, field="Subject", pattern=r'^Poet.*', english_only=Tru
             yield item
 
 
+def iter_examples(archive_path, metadata_etnry):
+    prev_lines = ['', '', '']
+    for line in iter_lines_from_gd_path(archive_path, metadata_entry.get('gd-path')):
+        text = " [SEP] ".join(prev_lines) + " [SEP] " + line
+        ex = {'text': text, 'line': line}
+        prev_lines.pop(0)
+        prev_lines.append(line)
+        yield ex
+
+
 def windowed_iter(items, n):
     items = (['BOS'] * n) + items + (['EOS'] * n)
     yield from zip(*[items[i:] for i in range((2*n)+1)])

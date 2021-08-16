@@ -36,6 +36,18 @@ def predict_batch(model, batch):
         return F.softmax(output['logits'], dim=1)[:, 1].tolist()
 
 
+def preprocess(tokenizer, input_batch, max_length=256):
+    text = [ex['text'] for ex in input_batch]
+    return tokenizer(
+        text = text,
+        max_length = max_length,
+        return_tensors = 'pt',
+        padding='max_length',
+        truncation=True,
+        is_split_into_words=False
+    )
+
+
 def predict_data(data_path, model, batch_size=512):
     predict = partial(predict_batch, model)
     dataset = JsonlDataset(data_path,

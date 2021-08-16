@@ -1,21 +1,24 @@
 import argparse
 import json
-from argparse import Namespace
-from functools import partial
 import jsonlines
 import os
+from argparse import Namespace
+from functools import partial
 
 import torch
 import torch.nn.functional as F
+
 import tqdm
-from torch.utils.data import DataLoader
 
 from models.poetry_classifier import PoetryClassifier
-
-from datasets.jsonl_dataset import JsonlDataset
-
-from helpers.utils import batch_iterable
-from helpers.utils import gd_metadata_iter, iter_lines_from_gd_path, load_metadata
+from helpers.classifier_inference_helpers import predict_batch, preprocess, load_model
+from helpers.utils import (
+    gd_metadata_iter, 
+    iter_lines_from_gd_path, 
+    load_metadata,
+    batch_iterable,
+    iter_examples
+)
 
 
 def parse_args():
@@ -30,47 +33,13 @@ def parse_args():
     return parser.parse_args()
 
 
-def predict_batch(model, batch):
-    with torch.no_grad():
-        if torch.cuda.is_available():
-            batch = {k: v.cuda() for k, v in batch.items()}
-        output = model.forward(batch)
-        return F.softmax(output['logits'], dim=1)[:, 1].tolist()
-
-
-def iter_examples(archive_path, metadata_entry):
-    prev_lines = ['','','']
-    for line in iter_lines_from_gd_path(archive_path, metadata_entry.get('gd-path')):
-        text = "[SEP]".join(prev_lines) + " [SEP] " + line
-        ex = {'text': text, 'line': line}
-        prev_lines.pop(0)
-        prev_lines.append(line)
-        yield ex
-
-
-def preprocess(tokenizer, input_batch, max_length=256):
-    text = [ex['text'] for ex in input_batch]
-    return tokenizer(
-        text = text,
-        max_length = max_length,
-        return_tensors = 'pt',
-        padding='max_length',
-        truncation=True,
-        is_split_into_words=False
-    )
-
-
 if __name__ == "__main__":
     args = parse_args()
     model_args = {
         'vocab_path': args.vocab_path
     }
 
-    model = PoetryClassifier(Namespace(**model_args))
-    model.load_state_dict(torch.load(args.model_path))
-    model.eval()
-    if torch.cuda.is_available():
-        model = model.cuda(device=0)
+    model = load_model(args.model_path)
     predict = partial(predict_batch, model)
     preprocess = partial(preprocess, model.tokenizer)
 
@@ -84,6 +53,7 @@ if __name__ == "__main__":
         pbar.set_description(f"reading {metadata_entry['Title'][0]}")
         pbar.update(1)
         metadata_entry['gd-poetry-path'] = metadata_entry['gd-path'].split('.')[0] + '.json'
+        metadata_entry['gd-poetry-path'] = metadata_entry['gd-poetry-path'].replace('/', '.')
         ex_iter = iter_examples(args.archive_path, metadata_entry)
         batch_iter = batch_iterable(ex_iter, args.batch_size)
         poems = []
