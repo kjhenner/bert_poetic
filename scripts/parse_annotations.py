@@ -1,7 +1,4 @@
-import json
-import jsonlines
 import argparse
-import random
 
 
 def parse_args():
@@ -23,20 +20,15 @@ def parse_args():
 
 def main(args):
 
-    data = []
-
     with open(args.input_path) as f:
         lines = f.readlines()
 
-    prev_lines = ['','','']
-    for line in lines:
-        label, text, index = line.split('\t')[:3]
-        data.append({'label': int(label), 'text': text, 'index': index, 'prev_lines': prev_lines.copy()})
-        prev_lines.pop(0)
-        prev_lines.append(text)
-
-    with jsonlines.open(args.output_path, 'w') as writer:
-        writer.write_all(data)
+    with open(args.output_path, 'w') as f:
+        for line in lines:
+            label, text, location = line.split('\t')[:3]
+            gd_num = location.split('_')[0].split('.')[1]
+            line_num = location.split('.')[-1]
+            f.write('\t'.join([label, gd_num, line_num]) + '\n')
 
 
 if __name__ == "__main__":

@@ -5,9 +5,9 @@ import json
 from itertools import chain, islice
 
 
-def load_metadata(archive_path):
+def load_metadata(archive_path, metadata_path):
     zip_file = zipfile.ZipFile(archive_path)
-    with zip_file.open('gutenberg-dammit-files/gutenberg-metadata.json') as f:
+    with zip_file.open(metadata_path) as f:
         return json.load(f)
 
 
@@ -19,7 +19,7 @@ def gd_metadata_iter(data, field="Subject", pattern=r'^Poet.*', english_only=Tru
             yield item
 
 
-def iter_examples(archive_path, metadata_etnry):
+def iter_examples(archive_path, metadata_entry):
     prev_lines = ['', '', '']
     for line in iter_lines_from_gd_path(archive_path, metadata_entry.get('gd-path')):
         text = " [SEP] ".join(prev_lines) + " [SEP] " + line
@@ -30,7 +30,7 @@ def iter_examples(archive_path, metadata_etnry):
 
 
 def windowed_iter(items, n):
-    items = (['BOS'] * n) + items + (['EOS'] * n)
+    items = ([''] * n) + items + ([''] * n)
     yield from zip(*[items[i:] for i in range((2*n)+1)])
 
 
@@ -46,3 +46,26 @@ def iter_lines_from_gd_path(archive_path, gd_path):
     with zip_file.open(os.path.join('gutenberg-dammit-files/', gd_path)) as f:
         for line in f.read().decode('utf-8').split('\n'):
             yield line.strip()
+
+
+def load_annotation_dict(annotation_path):
+    with open(annotation_path) as f:
+        return {(*line.strip().split('\t')[1:],): line.split('\t')[0]
+                for line in f.readlines()}
+
+
+def iter_line_windows_from_gd_path_and_annotation_dict(
+        archive_path,
+        gd_path,
+        gd_num,
+        annotation_dict,
+        window_size=4,
+    ):
+    line_windows = windowed_iter(
+        list(iter_lines_from_gd_path(archive_path, gd_path)),
+        window_size
+    )
+    for i, window in enumerate(line_windows):
+        label = annotation_dict.get((gd_num, str(i)))
+        if label:
+            yield {'window': window, 'label': label}

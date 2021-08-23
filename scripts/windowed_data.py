@@ -1,47 +1,40 @@
-import zipfile
-import json
-import os
-import jsonlines
 import argparse
-from itertools import islice
-from helpers.utils import filtered_iter, windowed_iter
-
+import jsonlines
+from helpers.utils import (
+    iter_line_windows_from_gd_path_and_annotation_dict,
+    load_annotation_dict,
+    load_metadata,
+    gd_metadata_iter
+)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Iterate over poetry data and yield windowed data')
+    parser = argparse.ArgumentParser(description='Generate windowed examples for poetry classifier model.')
+    parser.add_argument('archive_path', type=str)
+    parser.add_argument('annotation_path', type=str)
     parser.add_argument('output_path', type=str)
-    parser.add_argument('--archive-path', type=str)
-    parser.add_argument('--window-size', type=int, default=3)
-    parser.add_argument('--per-book-limit', type=int, default=0)
+    parser.add_argument('--window-size', type=int, default=4)
 
     return parser.parse_args()
 
 
 def main(args):
-    zip_file = zipfile.ZipFile(args.archive_path)
-    with zip_file.open('gutenberg-dammit-files/gutenberg-metadata.json') as f:
-        gutenberg_metadata = json.load(f)
-
-    filtered_items = filtered_iter(gutenberg_metadata, "Subject", r'^Poet.*')
-
-    data = []
-    for item in filtered_items:
-        with zip_file.open(os.path.join('gutenberg-dammit-files', item.get('gd-path'))) as f:
-            lines = f.read().decode('utf-8').split('\n')
-        w_iter = windowed_iter(lines, args.window_size)
-        if args.per_book_limit:
-            witer = islice(w_iter, args.per_book_limit)
-        for window in w_iter: 
-            line = window[args.window_size]
-            display = list(window)
-            display[args.window_size] = ">>>" + line
-            data.append({"title": item.get('Title'),
-                         "text": '\n'.join(display),
-                         "window": window,
-                         "gd-path": item.get('gd-path')})
+    annotation_dict = load_annotation_dict(args.annotation_path)
+    gd_metadata_list = load_metadata(
+        args.archive_path,
+        'gutenberg-dammit-files/gutenberg-metadata.json'
+    )
+    poetry_metadata = gd_metadata_iter(gd_metadata_list)
     with jsonlines.open(args.output_path, 'w') as writer:
-        writer.write_all(data)
+        for metadata_entry in poetry_metadata:
+            data = iter_line_windows_from_gd_path_and_annotation_dict(
+                args.archive_path,
+                metadata_entry['gd-path'],
+                metadata_entry['gd-num-padded'],
+                annotation_dict,
+                int(args.window_size)
+            )
+            writer.write_all(data)
 
 
 if __name__ == "__main__":
