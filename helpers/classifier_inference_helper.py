@@ -37,7 +37,7 @@ def predict_batch(model, batch):
 
 
 def preprocess(tokenizer, input_batch, max_length=256):
-    text = [ex['text'] for ex in input_batch]
+    text = [" [SEP] ".join(ex['window']) for ex in input_batch]
     return tokenizer(
         text = text,
         max_length = max_length,
@@ -49,20 +49,12 @@ def preprocess(tokenizer, input_batch, max_length=256):
 
 
 def predict_data(data_path, model, batch_size=512):
-    predict = partial(predict_batch, model)
-    dataset = JsonlDataset(data_path,
-                           preprocess=partial(preprocess, model.tokenizer))
-    data = DataLoader(dataset,
-                      batch_size=batch_size,
-                      num_workers=5,
-                      pin_memory=True)
-
-    progress = tqdm.tqdm(total=len(dataset))
     with jsonlines.open(data_path) as reader:
-        line_iter = batch_iterable(list(reader), n=batch_size)
-
+        batches = list(batch_iterable(reader, 24))
+    predict = partial(predict_batch, model)
+    progress = tqdm.tqdm(total=len(batches))
     preds = []
-    for data_batch, input_batch in zip(iter(data), line_iter):
-        preds += predict(data_batch)
+    for data_batch in batches:
+        preds += predict(preprocess(model.tokenizer, data_batch))
         progress.update(batch_size)
     return preds

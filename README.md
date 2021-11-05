@@ -63,5 +63,4 @@ with a neural network transformer language model.
    token, getting the model's prediction for the likliest token to fill that
    position, inserting that predicted token, and finally repeating the process
    with the new text.
-   for the most likley token to take that position, and 
  

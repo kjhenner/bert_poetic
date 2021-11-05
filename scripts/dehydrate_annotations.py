@@ -3,7 +3,7 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Parse annotated poetry classifier examples."
+        description="Reformat annotated lines to a minimal form with line references only."
     )
     parser.add_argument(
         'input_path',
@@ -25,7 +25,7 @@ def main(args):
 
     with open(args.output_path, 'w') as f:
         for line in lines:
-            label, text, location = line.split('\t')[:3]
+            label, _, location = line.split('\t')[:3]
             gd_num = location.split('_')[0].split('.')[1]
             line_num = location.split('.')[-1]
             f.write('\t'.join([label, gd_num, line_num]) + '\n')

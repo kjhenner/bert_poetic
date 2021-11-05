@@ -16,7 +16,7 @@ from datasets.jsonl_dataset import JsonlDataset
 
 def preprocess(tokenizer, ex: Dict, max_length: int = 256) -> Dict:
 
-    text = "[SEP]".join(ex['prev_lines']) + " [SEP] " + ex['text']
+    text = " [SEP] ".join(ex['window'])
 
     tokenized = tokenizer(
         text=text,
@@ -28,7 +28,7 @@ def preprocess(tokenizer, ex: Dict, max_length: int = 256) -> Dict:
     )
 
     if ex.get('label') is not None:
-        tokenized['labels'] = torch.tensor([ex['label']], dtype=torch.long)
+        tokenized['labels'] = torch.tensor([int(ex['label'])], dtype=torch.long)
 
     return tokenized
 
@@ -56,7 +56,7 @@ class PoetryClassifier(LightningModule):
 #
 #        self.train_metrics = metrics.clone(prefix='train_')
 #        self.val_metrics = metrics.clone(prefix='val_')
-#        self.test_metrics = metrics.clone(prefix='test')
+#        self.test_metrics = metrics.clone(prefix='test_')
 
     def forward(self, inputs):
         for k, v in inputs.items():
@@ -73,6 +73,12 @@ class PoetryClassifier(LightningModule):
         output = self(batch)
         loss = output.loss
         self.log('val_loss', loss, on_epoch=True)
+        return loss
+
+    def test_step(self, batch, batch_idx):
+        output = self(batch)
+        loss = output.loss
+        self.log('test_loss', loss, on_epoch=True)
         return loss
 
     def train_dataloader(self):
@@ -92,6 +98,14 @@ class PoetryClassifier(LightningModule):
                                     num_workers=self.hparams.dataloader_workers)
         return val_dataloader
 
+    def test_dataloader(self):
+        dataset = JsonlDataset(self.hparams.test_data,
+                               preprocess=partial(preprocess, self.tokenizer))
+        test_dataloader = DataLoader(dataset,
+                                     batch_size=self.hparams.batch_size,
+                                     num_workers=self.hparams.dataloader_workers)
+        return test_dataloader
+
     def configure_optimizers(self):
         lr = self.hparams.lr
         b1 = self.hparams.b1
@@ -110,14 +124,15 @@ class PoetryClassifier(LightningModule):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='BERT poetry classifier.')
-    parser.add_argument('--max_epochs', type=int, default=1)
+    parser.add_argument('--max_epochs', type=int, default=16)
     parser.add_argument('--batch_size', type=int, default=24)
     parser.add_argument('--lr', type=float, default=0.000007)
     parser.add_argument('--b1', type=float, default=0.9)
     parser.add_argument('--b2', type=float, default=0.999)
     parser.add_argument('--weight_decay', type=float, default=0.15)
-    parser.add_argument('--train_data', type=str, default='/mnt/atlas/bert_poetic/poetry_classifier/train_annotated_100k.jsonl')
-    parser.add_argument('--val_data', type=str, default='/mnt/atlas/bert_poetic/poetry_classifier/dev_annotated_100k.jsonl')
+    parser.add_argument('--train_data', type=str, default='/mnt/atlas/bert_poetic/poetry_classifier/train_sampled.jsonl')
+    parser.add_argument('--val_data', type=str, default='/mnt/atlas/bert_poetic/poetry_classifier/dev_sampled.jsonl')
+    parser.add_argument('--test_data', type=str, default='/mnt/atlas/bert_poetic/poetry_classifier/test_sampled.jsonl')
     parser.add_argument('--dataloader_workers', type=int, default=5)
     parser.add_argument('--vocab_path', type=str, default='pretrained')
     return parser.parse_args()
@@ -134,4 +149,5 @@ if __name__ == "__main__":
                          accumulate_grad_batches=2,
                          logger=tb_logger)
     trainer.fit(model)
-    torch.save(model.state_dict(), '/mnt/atlas/models/poetry_classifier_annotated.pt')
+    torch.save(model.state_dict(), '/mnt/atlas/models/poetry_classifier_sampled.pt')
+    trainer.test(model)

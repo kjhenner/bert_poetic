@@ -1,0 +1,13 @@
+name:
+    mlm_pretrain
+
+channels:
+    - conda
+    - pytorch
+    - huggingface
+
+dependencies:
+    - transformers>=3
+    - pytorch=1.7.1
+    - jsonlines
+

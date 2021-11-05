@@ -17,7 +17,8 @@ from helpers.utils import (
     iter_lines_from_gd_path, 
     load_metadata,
     batch_iterable,
-    iter_examples
+    iter_examples,
+    iter_line_windows_from_gd_path
 )
 
 
@@ -52,19 +53,19 @@ if __name__ == "__main__":
     for metadata_entry in poetry_metadata:
         pbar.set_description(f"reading {metadata_entry['Title'][0]}")
         pbar.update(1)
-        path = (metadata_entry['gd-path'].split('.')[0] + '_line_classified.jsonl').replace('/', '.')
+        path = metadata_entry['gd-num-padded'] + '.txt'
         metadata_entry['gd-line-classified-path'] = path
-        ex_iter = iter_examples(args.archive_path, metadata_entry)
+        ex_iter = iter_line_windows_from_gd_path(
+            args.archive_path, 
+            metadata_entry.get('gd-path')
+        )
         batch_iter = batch_iterable(ex_iter, args.batch_size)
-        data = []
-        for batch in batch_iter:
-            if len(batch) > 1:
-                for ex, pred in zip(batch, predict(preprocess(batch))):
-                    ex['pred'] = pred
-                    data.append(ex)
         write_path = os.path.join(args.output_dir, path)
         os.makedirs(os.path.dirname(write_path), exist_ok=True)
-        with jsonlines.open(write_path, 'w') as writer:
-            writer.write_all(data)
-    with open(poetry_metadata_path, 'w') as f:
-        f.write(json.dumps(poetry_metadata, indent=2))
+        out = ''
+        with open(write_path, 'w') as f:
+            for batch in batch_iter:
+                if len(batch) > 1:
+                    for ex, pred in zip(batch, predict(preprocess(batch))):
+                        out += str(int(pred >= 0.5)) + '\n'
+            f.write(out)

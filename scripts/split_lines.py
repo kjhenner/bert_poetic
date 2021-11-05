@@ -20,19 +20,19 @@ def train_dev_test_split(examples, train_prop, input_file):
 
     split_data = {
         'train': examples[:train_par],
-        'dev': examples[train_par:-test_par],
+        'validation': examples[train_par:-test_par],
         'test': examples[-test_par:]
     }
 
     for k, v in split_data.items():
-        print("{} counts".format(k))
-        print(len(v))
-        path = os.path.join(dirname, '{}_{}'.format(k, basename))
+        print(f"{k}: {len(v)} examples")
+        path = os.path.join(dirname, f"{k}.{basename}")
         write_examples(v, path)
     
 if __name__ == "__main__":
     input_file = sys.argv[1]
     split_prop = float(sys.argv[2])
+    random.seed(42069)
 
     with open(input_file) as f:
         examples = f.readlines()

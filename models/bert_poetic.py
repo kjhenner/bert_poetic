@@ -36,7 +36,7 @@ def preprocess(tokenizer, ex: Dict, mask=True, max_length: int = 256) -> Dict:
     return tokenized
 
 
-class BERTPoeticModel(LightningModule):
+class BertPoetic(LightningModule):
 
     def __init__(self, hparams):
         super(BERTPoeticModel, self).__init__()
@@ -98,7 +98,7 @@ class BERTPoeticModel(LightningModule):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='bert poetic MLM pretraining.')
+    parser = argparse.ArgumentParser(description='BERT Poetic MLM training.')
     parser.add_argument('--max_epochs', type=int, default=4)
     parser.add_argument('--batch_size', type=int, default=24)
     parser.add_argument('--lr', type=float, default=0.000007)
@@ -115,12 +115,11 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     tb_logger = pl_loggers.TensorBoardLogger('logs/')
-    model = BERTPoeticModel(args)
-    #trainer = pl.Trainer(gpus=1, max_epochs=args['max_epochs'], logger=tb_logger)
+    model = BertPoetic(args)
     trainer = pl.Trainer(gpus=2,
                          max_epochs=args.max_epochs,
                          distributed_backend='ddp',
                          accumulate_grad_batches=5,
                          logger=tb_logger)
     trainer.fit(model)
-    torch.save(model.state_dict(), '/mnt/atlas/models/model_2.pt')
+    torch.save(model.state_dict(), '/mnt/atlas/models/bert_poetic.pt')
