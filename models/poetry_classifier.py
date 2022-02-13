@@ -3,6 +3,7 @@ from functools import partial
 from typing import Dict
 
 import torch
+import torchmetrics
 from torch.utils.data import DataLoader
 
 import pytorch_lightning as pl
@@ -10,6 +11,7 @@ from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.core.lightning import LightningModule
 
 from transformers import BertConfig, BertForSequenceClassification, BertTokenizer, AdamW
+from transformers import RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer
 
 from datasets.jsonl_dataset import JsonlDataset
 
@@ -41,22 +43,23 @@ class PoetryClassifier(LightningModule):
         self.hparams = hparams
 
         if self.hparams.vocab_path == 'pretrained':
-            self.transformer = BertForSequenceClassification.from_pretrained('bert-base-uncased')
-            self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+            self.transformer = RobertaForSequenceClassification.from_pretrained('roberta-base')
+            self.tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
         else:
-            bert_config = BertConfig(vocab_size=1000)
-            self.transformer = BertForSequenceClassification(config=bert_config)
-            self.tokenizer = BertTokenizer(self.hparams.vocab_path, do_lower_case=True)
+            config = RobertaConfig(vocab_size=1000)
+            self.transformer = RobertaForSequenceClassification(config=config)
+            self.tokenizer = RobertaTokenizer(self.hparams.vocab_path, do_lower_case=True)
 
-#        metrics = torchmetrics.MetricCollection([
-#            torchmetrics.Accuracy(num_classes=2)
-#            torchmetrics.Precision(num_classes=2)
-#            torchmetrics.Recall(num_classes=2)
-#            torchmetrics.F1(num_classes=2)
-#
-#        self.train_metrics = metrics.clone(prefix='train_')
-#        self.val_metrics = metrics.clone(prefix='val_')
-#        self.test_metrics = metrics.clone(prefix='test_')
+        metrics = torchmetrics.MetricCollection([
+            torchmetrics.Accuracy(),
+            torchmetrics.Precision(num_classes=2, average='macro'),
+            torchmetrics.Recall(num_classes=2, average='macro'),
+            torchmetrics.F1(num_classes=2, average='macro')
+        ])
+
+        self.train_metrics = metrics.clone(prefix='train_')
+        self.val_metrics = metrics.clone(prefix='val_')
+        self.test_metrics = metrics.clone(prefix='test_')
 
     def forward(self, inputs):
         for k, v in inputs.items():
@@ -66,19 +69,25 @@ class PoetryClassifier(LightningModule):
     def training_step(self, batch, batch_idx):
         output = self(batch)
         loss = output.loss
-        self.log('loss', loss)
+        self.log('loss', loss) 
+        output = self.train_metrics(output.logits, batch['labels'])
+        self.log_dict(output)
         return loss
 
     def validation_step(self, batch, batch_idx):
         output = self(batch)
         loss = output.loss
         self.log('val_loss', loss, on_epoch=True)
+        output = self.val_metrics(output.logits, batch['labels'])
+        self.log_dict(output)
         return loss
 
     def test_step(self, batch, batch_idx):
         output = self(batch)
         loss = output.loss
         self.log('test_loss', loss, on_epoch=True)
+        output = self.test_metrics(output.logits, batch['labels'])
+        self.log_dict(output)
         return loss
 
     def train_dataloader(self):
@@ -123,18 +132,18 @@ class PoetryClassifier(LightningModule):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='BERT poetry classifier.')
-    parser.add_argument('--max_epochs', type=int, default=16)
-    parser.add_argument('--batch_size', type=int, default=24)
-    parser.add_argument('--lr', type=float, default=0.000007)
+    parser = argparse.ArgumentParser(description='Line classifier training script.')
+    parser.add_argument('--max-epochs', type=int, default=24)
+    parser.add_argument('--batch-size', type=int, default=24)
+    parser.add_argument('--lr', type=float, default=0.000003)
     parser.add_argument('--b1', type=float, default=0.9)
     parser.add_argument('--b2', type=float, default=0.999)
-    parser.add_argument('--weight_decay', type=float, default=0.15)
-    parser.add_argument('--train_data', type=str, default='/mnt/atlas/bert_poetic/poetry_classifier/train_sampled.jsonl')
-    parser.add_argument('--val_data', type=str, default='/mnt/atlas/bert_poetic/poetry_classifier/dev_sampled.jsonl')
-    parser.add_argument('--test_data', type=str, default='/mnt/atlas/bert_poetic/poetry_classifier/test_sampled.jsonl')
-    parser.add_argument('--dataloader_workers', type=int, default=5)
-    parser.add_argument('--vocab_path', type=str, default='pretrained')
+    parser.add_argument('--weight-decay', type=float, default=0.15)
+    parser.add_argument('--train-data', type=str)
+    parser.add_argument('--val-data', type=str)
+    parser.add_argument('--test-data', type=str)
+    parser.add_argument('--dataloader-workers', type=int, default=5)
+    parser.add_argument('--vocab-path', type=str, default='pretrained')
     return parser.parse_args()
 
 
@@ -142,12 +151,10 @@ if __name__ == "__main__":
     args = parse_args()
     tb_logger = pl_loggers.TensorBoardLogger('logs/')
     model = PoetryClassifier(args)
-    #trainer = pl.Trainer(gpus=1, max_epochs=args['max_epochs'], logger=tb_logger)
-    trainer = pl.Trainer(gpus=2,
+    trainer = pl.Trainer(gpus=1,
                          max_epochs=args.max_epochs,
-                         distributed_backend='ddp',
                          accumulate_grad_batches=2,
                          logger=tb_logger)
     trainer.fit(model)
-    torch.save(model.state_dict(), '/mnt/atlas/models/poetry_classifier_sampled.pt')
+    torch.save(model.state_dict(), './line_classifier.pt')
     trainer.test(model)

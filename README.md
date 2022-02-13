@@ -1,66 +1,65 @@
 # BERT Poetic
 
-```
-i was the shadow of the waxwing slain
-i was the shadow of the waxwing slow
-i was the shadadow of the waxwing slow
-i saw the shadadow of the waxwing slow
-i saw the shoadadow of the waxwing slow
-i saw the shobadow of the waxwing slow
-i saw the shobadow of the waxrowing slow
-i saw the brobadow of the waxrowing slow
-i saw the brobadowing of the waxrowing slow
-i saw the brobadowing of the walrowing slow
-i saw the brobadowing of the solrowing slow
-i saw the brobadowing of the old solrowing slow
-i saw the broblowing of the old solrowing slow
-i saw the broblnowing of the old solrowing slow
-i saw the broblnowing of the older solrowing slow
-i saw the spoblnowing of the older solrowing slow
-i saw the spoblnowing of the water solrowing slow
-i saw in the spoblnowing of the water solrowing slow
-i saw in the spoblnow spring of the water solrowing slow
-i saw in the spoblnow spring of the water sorrowing slow
-i saw in the spoblnow spring of all the water sorrowing slow
-i saw in the spoblnow spring of all, the water sorrowing slow
-i saw in the spokenow spring of all, the water sorrowing slow
-i saw in the sponkenow spring of all, the water sorrowing slow
-i am in the sponkenow spring of all, the water sorrowing slow
-i i am in the sponkenow spring of all, the water sorrowing slow
-i i am in the sponkenow spring of all, the water sorrow to slow
-i i am in the sponkenow spring of all things, the water sorrow to slow
-i i am in the sponkenow springing all things, the water sorrow to slow
-```
-
 ## What's this?
-A collection of tools to explore poetry generation
-with a neural network transformer language model.
 
-## How does it work?
+A collection of tools to explore poetry generation with a neural network
+transformer language model.
 
-1. Get a whole bunch of poetry from the [Gutenberg,
-   dammit](https://github.com/aparrish/gutenberg-dammit) dataset.
+## Line classifier
 
-2. Use the poetry to train a [word-piece
-   tokenizer](https://github.com/huggingface/tokenizers). A word-piece
-   tokenizer splits words into a sequence of words or pieces of words. The smaller
-   the the vocabulary size, the smaller the pieces of words have to be. I want to
-   train a model to pay attention to meter and rhyme rather than syntax and
-   semantics, so I use a very small vocabulary size of 1000. (This is probably a
-   good parameter to experiment on!)
+The poetry line classifier takes a window of lines of poetry as input and
+predicts whether the line at the center of the window is a line of poetry.
 
-3. Pre-train a [BERT](https://www.aclweb.org/anthology/N19-1423.pdf) masked
-   language model task on lines of poetry. The model replaces a random token
-   in each example with the `[MASK]` token, then learns to predict what word
-   was replaced based on context.
+This classifier is not intended to capture any profound truths vis-a-vis the
+nature of poetry. It is intended to assist in identifying contiguous spans of
+poetic text in the Project Gutenberg corpus.
 
-4. The real value of this pre-trained language model will be in refining it
-   for further tasks related to poetry generation, such as metrical classification
-   and rhyme prediction. This is COMING SOON.
+### Line classifier dataset
 
-5. But in the mean time, it's fun make it generate text by randomly replacing
-   tokens in an input text with a `[MASK]` token or randomly inserting a `[MASK]`
-   token, getting the model's prediction for the likliest token to fill that
-   position, inserting that predicted token, and finally repeating the process
-   with the new text.
- 
+To construct the annotated dataset, I used the heuristic rules defined in
+Alison Parish's [gutenberg-poetry-corpus
+project](https://github.com/aparrish/gutenberg-poetry-corpus) to annotate an
+initial training set, then trained an intermediate classifier based on those
+heuristic labels. This intermediate set generalized somewhat from the heuristic
+model to improve accuracy. To construct the final training set, I sampled the
+first, middle, and last hundred lines from each work in the Gutenberg Dammit
+dataset with a `Subject` metadata field matching the pattern `^Poet.*`. This
+sampling strategy is intended to capture a reasonable cross-section of the
+corpus text while providing contiguity for the ease of annotation. The sample
+consists of 123,143 lines total. I used the intermediate model to generate
+initial predictions, then manually corrected classification errors.
+
+The annotated dataset is stored in a TSV format where each line consists of a
+label, padded Gutenberg Dammit ID number of the work, and (zero-indexed) line
+number within the work. For example:
+
+`0	00020	0`
+
+To generate windowed data, run the following script, supplying the location of
+the [Gutenberg Dammit](https://github.com/aparrish/gutenberg-dammit) archive
+and the output file path where you want the output to be saved.
+
+    python -m scripts.windowed_classifier_data <GD_ARCHIVE_PATH> data/line_classifier_annotations.tsv <OUTPUT_PATH>
+
+For training, split the data into `train`, `validation` and `test` segments. I
+used 0.6 for the `train` segment and held out 0.2 each for the `validation` and
+`test` segments. Pass in the path where you saved your windowed data with the
+previous step.
+
+    python -m scripts.split <WINDOWED_DATA_PATH> 0.2
+
+### Line classifier training
+
+To train the model, run the following, supplying the paths of the splits
+generated by the split script described in the dataset section above:
+
+    python -m models.poetry_classifier --val-data <VAL_DATA_PATH> --test-data <TEST_DATA_PATH> --train-data <TRAIN_DATA_PATH>
+
+### Line classifier predictions
+
+To get line classifier predictions, run the following script:
+
+    python -m inference.poetry_classifier_inference <GD_ARCHIVE_PATH> data/line_classifier_predictions.tsv --model-path <MODEL_PATH>
+
+## Poetry segmenter
+

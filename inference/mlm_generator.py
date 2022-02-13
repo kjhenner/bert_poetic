@@ -52,35 +52,28 @@ if __name__ == "__main__":
     model = RobertaForMaskedLM.from_pretrained(args.model_path)
     tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
     model.eval()
-    spiciness = 14
+    spiciness = 5
 
     text = ' '.join(args.seed_text)
     prev_text = ''
     while True:
         sleep(.4)
         prev_text = text
-        text = random_replace(model, tokenizer, text, spiciness=spiciness)
+        text = random_replace(model, tokenizer, text, spiciness=1)
         if(text != prev_text):
             print(text)
             print('\n'*5)
 
         sleep(.4)
         prev_text = text
-        text = random_replace(model, tokenizer, text, spiciness=spiciness)
+        text = random_replace(model, tokenizer, text, spiciness=5)
         if(text != prev_text):
             print(text)
             print('\n'*5)
 
         sleep(.4)
         prev_text = text
-        text = random_replace(model, tokenizer, text, spiciness=spiciness)
-        if(text != prev_text):
-            print(text)
-            print('\n'*5)
-
-        sleep(.4)
-        prev_text = text
-        text = random_replace(model, tokenizer, text, spiciness=spiciness)
+        text = random_insert(model, tokenizer, text, spiciness=14)
         if(text != prev_text):
             print(text)
             print('\n'*5)
