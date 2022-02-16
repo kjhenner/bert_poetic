@@ -61,6 +61,19 @@ def load_annotation_dict_from_label_list(annotation_path):
                 for i, line in enumerate(f.readlines())}
 
 
+def iter_lines_from_gd_path_and_annotation_dict(
+        archive_path,
+        gd_path,
+        gd_num,
+        annotation_dict
+):
+    lines = iter_lines_from_gd_path(archive_path, gd_path)
+    for i, line in enumerate(lines):
+        label = annotation_dict.get((gd_num, str(i)))
+        if label:
+            yield {'line': line, 'label': label}
+
+
 def iter_line_windows_from_gd_path_and_annotation_dict(
         archive_path,
         gd_path,
@@ -105,6 +118,34 @@ def iter_line_windows_in_poetry_segments_from_gd_path_and_annotation_dict(
                 non_poetry_count = 0
         buffer.append(example)
     yield from buffer
+
+
+def iter_poetry_segments_from_gd_path_and_annotation_dict(
+    archive_path,
+    gd_path,
+    gd_num,
+    annotation_dict
+):
+    buffer = []
+    non_poetry_count = 0
+    for line in iter_lines_from_gd_path_and_annotation_dict(
+        archive_path,
+        gd_path,
+        gd_num,
+        annotation_dict
+    ):
+        if line['label'] == '0':
+            non_poetry_count += 1
+            # On a series of three non-poetry lines, break the segment and flush the buffer, exclusive of the
+            # final two items, which are terminal non-poetry.
+            if non_poetry_count == 3:
+                if len(buffer) > 4:
+                    yield buffer[:-2]
+                buffer = []
+                non_poetry_count = 0
+        else:
+            buffer.append(line['line'])
+    yield buffer
 
 
 def iter_line_windows_from_gd_path(
